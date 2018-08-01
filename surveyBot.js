@@ -1,21 +1,12 @@
 const SteamUser = require('steam-user');
 const SteamTotp = require('steam-totp');
 const config = require('./config.json');
-const request = require("request");
 const client = new SteamUser();
-const util = require('util')
-const exec = require('child_process').exec;
 
-let profiles = [];
-
-const findID = function(steamID) {
-    for (i in profiles) {
-        console.log(profiles[i]);
-        if (profiles[i].id.toString() === steamID.toString()) {
-            return i;
-        }
-    }
-}
+//Steam-user returns a funky object for the steam user
+//id. It works throughout the npm module and works 
+//for steam web api. It's just not a real steam ID.
+//The function below can help you find the real one.
 
 const trueID = function(steamID) {
     request({
@@ -24,30 +15,11 @@ const trueID = function(steamID) {
     }, function(error, response, body) {
         let steamResponse = JSON.parse(body);
         theTruestID = steamResponse.response.players[0].steamid;
-        addFriends(steamID);
-        profiles.push(new Profile(theTruestID, steamID));
+        return theTruestID;
     });
 };
- 
-class Profile {
-    constructor(theTruestID, steamID) {
-        this.trueID = theTruestID;
-        this.id = steamID;
-        this.scammed = "N/A";
-        this.timesScammed = "N/A";
-        this.valueScammed = "N/A";
-    }
-}
-var net = require('net');
 
-var socketClient = new net.Socket();
-socketClient.connect(8088,'10.0.0.153', function() {
-    console.log('Connected');
-});
-
-socketClient.on('close', function() {
-    console.log('Connection closed');
-});
+//Logs the bot into Steam.
 
 const logOnOptions = {
     accountName: config.username,
@@ -56,75 +28,73 @@ const logOnOptions = {
 
 client.logOn(logOnOptions);
 
+//When logged on, configures the bot's status.
+
 client.on('loggedOn', () => {
     console.log('Logged into Steam');
     client.setPersona(SteamUser.Steam.EPersonaState.Online);
-    client.gamesPlayed(440);
+    client.gamesPlayed(440); //you can have your bot play a game while online. Simply enter the game ID, It's set to TF2 right now.
 });
 
-client.on('friendMessage', (senderID, message) => {
-    i = findID(senderID);
-    console.log(i);
-    if (message == "no" || message == "no") {
-        const yesMessage = "Nice! Alrighty, stay safe out there. I will now unfriend you! I will also block you so I don't bother you again (also to ensure no duplicates in my data). Thank you for your time!"
-    client.chatMessage(senderID, noMessage);
-    profiles[i].scammed = "No";
-    client.removeFriend(senderID);
+//Edit the below for the message handler.
+
+client.on('friendMessage', (senderID, message) => { //When the bot receieves a message from a friend, it will process the message.
+
+    if (message === "hello") {
+        newMessage = "hi there!";
     }
 
-    else if (message == "Yes" || message == "yes") {
-        const yesMessage = "That sucks! How many times has something like that happened to you? (Please enter a positive integer (1, 2, 3, etc.) so that I can understand you!"
-        client.chatMessage(senderID, yesMessage);
-        profiles[i].scammed = "Yes";
-    }
-
-    else if (!isNaN(message)) {
-        scammedMessage = "Aw, sorry to hear that! If I may ask, how much (in USD), have you gotten scammed for? Please include a '$' in front of your number value (ex: $30). Estimates are fine."
-        client.chatMessage(senderID, scammedMessage);
-        profiles[i].timesScammed = message;
-    }
-
-    else if (message.startsWith("$") == true) {
-        moneyMessage = "Ouch! Well, stay safe out there. I will now unfriend you. I will also block you so I don't bother you again (also to ensure no duplicates in my data). Thank you for your time!"
-        client.chatMessage(senderID, moneyMessage);
-        profiles[i].valueScammed = message;
-        client.removeFriend(senderID);
-    }
-    else {
-        const errorMessage = "Sorry! I didn't quite get that. Please type either 'yes' or 'no' for the first question and a positive real number for the second question!"
-        client.chatMessage(senderID, errorMessage);
+    else if (message === "you are a cool dude!") {
+        newMessage = "thanks!";
     }
 });
 
-const surveyQuestion = 'Hello there! I am a survey bot collecting data for a project for my creator! I only have one question for you, and then I will automatically unfriend you and be on my merry way! Please answer the following question: "Have you ever been scammed inside the Steam platform?" Please type "Yes" or "No." You can also remove me, I will block you so I do not bother you again!';
+//Switch cases also work:
+//
+//    switch (message) {
+//        case "hello":
+//            newMessage = "hi there!";
+//            break;
+//
+//        case "you are a cool dude!":
+//            newMessage = "thanks!";
+//            break;
+//    }
+
+const initiator = "Hi there!";
+
+//Accepts friend requests
+//
+//Here's a full list of friendRelationships:
+//None = 0,
+//Blocked = 1,
+//PendingInvitee = 2,
+//RequestRecipient = 2, (alias of PendingInvitee)
+//Friend = 3,
+//RequestInitiator = 4,
+//PendingInviter = 4, (alias of RequestInitiator)
+//Ignored = 5,
+//IgnoredFriend = 6,
+//SuggestedFriend = 7
 
 client.on('friendRelationship', (steamID, relationship) => {
     if (relationship === 3) {
-        client.chatMessage(steamID, surveyQuestion);
+        client.chatMessage(steamID, initiator); //Initiates a conversation when a friend is added.
         trueID(steamID);
-    }        
-    if (relationship === 0) {
-        temp = findID(steamID);
-        console.log(temp);
-        socketClient.write(JSON.stringify(profiles[temp]));
-        //client.blockUser(steamID);
+    }
+
+    if (relationship === 2) {
+        addFriend(steamID); //if there's a pending friend request, accept it.
     }
 });
 
-const addFriends = function(steamID) {
-   console.log(steamID);
-    request({
-        uri: 'https://api.steampowered.com/ISteamUser/GetFriendList/v0001/?key=D1677EC72DFDC8B7D2C2032D2B70C734&steamid=' + steamID + '&relationship=friend',
-        method: "GET",
-    }, function(error, response, body) {
-        let friendsResponse = JSON.parse(body);
-        try {
-            for (i in friendsResponse.friendslist.friends)
-                //client.addFriend(friendsResponse.friendslist.friends[i].steamid);
-                console.log(friendsResponse.friendslist.friends[i].steamid + " added!")
-        }
-        catch(err) {
-            console.log("Friends are on private or user has no friends. Unable to add, step skipped.");
-        }
-    });
-}
+//Final note:
+//The steam-user api is very thorough and power.
+//I encourage you to try it out to the fullest.
+//It's quite neat!
+//
+//You can make trade bots, add bots, and more!
+//
+//Extra resources:
+//1. https://github.com/andrewda/node-steam-guide
+//2. https://github.com/scholtzm/awesome-steam
