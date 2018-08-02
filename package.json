@@ -1,11 +1,13 @@
 {
-  "name": "project1",
-  "version": "1.0.0",
-  "license": "CC-BY-4.0",
-  "dependencies": {
-    "socket.io": "^2.1.1",
-    "socketio": "^1.0.0",
-    "steam-totp": "^2.0.1",
-    "steam-user": "^3.21.7"
-  }
+    "name": "project1",
+    "version": "1.0.0",
+    "scripts": {
+        "start": "node bot.js"
+    },
+    "license": "CC-BY-4.0",
+    "dependencies": {
+        "steam-totp": "^2.0.1",
+        "steam-user": "^3.21.7",
+        "request": "^2.87.0"
+    }
 }
